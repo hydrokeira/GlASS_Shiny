@@ -156,7 +156,7 @@ overview_ui <- navbarPage(
              
              htmltools::h2("Observation Networks and Monitoring Programs"),
              
-             htmltools::p("We sourced data from 25 published and publically available datasets spanning all seven continents and X countries.
+             htmltools::p("We sourced data from 25 published and publically available datasets spanning all seven continents and 18 countries.
                           We encourage you to explore the links below to read more about data source and get a better idea of the breadth of
                           climates and landscapes represented by GlASS", style="font-size:20px"),
              
@@ -439,17 +439,19 @@ overview_ui <- navbarPage(
                       
                       htmltools::h2("Manuscripts"),
                       
-                      uiOutput("long_term_MS"),
+                      uiOutput("long_term_MS", style="font-size:20px"),
                       
-                      uiOutput("regimes_MS"),
+                      uiOutput("regimes_MS", style="font-size:20px"),
                       
-                      uiOutput("drivers_MS"),
+                      uiOutput("drivers_MS", style="font-size:20px"),
                       
                       htmltools::h2("Data Releases"),
                       
-                      uiOutput("long_term_data"),
+                      uiOutput("long_term_data", style="font-size:20px"),
                       
-                      uiOutput("regimes_data")
+                      uiOutput("regimes_data", style="font-size:20px"),
+                      
+                      uiOutput("drivers_data", style="font-size:20px")
                )
              ) #close fluid row
            ) #close fluid page
@@ -922,6 +924,11 @@ overview_server <- function(input, output, session){
   url4 <- a("Monthly dissolved silicon concentrations from 198 rivers in the Northern Hemisphere", href="https://www.sciencebase.gov/catalog/item/6511aeabd34e823a0275dc3e")
   output$regimes_data <- renderUI({
     tagList(url4)
+  })
+  
+  url6<-a("Average and annual watershed climate, hydrology, and productivity data for rivers across the Northern Hemisphere", href="https://www.sciencebase.gov/catalog/item/6684087fd34e0f592272b3da")
+  output$drivers_data<-renderUI({
+    tagList(url6)
   })
   
 } #close server function
