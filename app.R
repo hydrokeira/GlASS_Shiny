@@ -21,34 +21,38 @@ require(ggplot2)
 
 ####read in data for tables, plotting, mapping####
 
-#load in cleaned data files
-master_chem<-read.fst("Master_Chem_ShinyAppCleanedFST.fst")
+#setwd("/Users/keirajohnson/GlASS_Shiny")
 
-master_q<-read.fst("Master_Q_ShinyAppCleanedFST.fst")
+#load in cleaned data files
+load("Master_Chem_ShinyAppCleaned.RDS")
+
+load("Master_Q_ShinyAppCleaned.RDS")
 
 #this one is called "cq_all_nodups"
 load("CQAll_ShinyAppCleaned.RDS")
 
 #this one is called "solute_drivers"
-load("SoluteDrivers_ShinyAppCleaned.RDS")
+load("SoluteDrivers_ShinyAppCleaned_GLASS.RDS")
 
 #this one is called "solute_drivers_all"
-load("SoluteDriversAll_ShinyAppCleaned.RDS")
+load("SoluteDriversAll_ShinyAppCleaned_GLASS.RDS")
 
 #for data exploration panel
 quant_drivers<-c("Log(Drainage Area (km2))","Evapotranspiration (kg/m2)", "Green Up Day (day of year)",
                  "Maximum Daylength (hours)", "Maximum Snow Covered Area (proportion)", "Log(Median Discharge (m3/s))", 
-                 "Median Elevation (m)","NPP (kgC/m2)", "Precipitation (mm/year)", "Temperature (deg C)",
-                 "Ca", "DSi", "K","Mg", "N", "Na", "P")
+                 "Mean Elevation (m)","NPP (kgC/m2)", "Precipitation (mm/year)", "Temperature (deg C)",
+                 "Ca","Cl","DOC", "DSi", "K","Mg", "N", "Na", "NH4","P", "SO4")
 
-color_drivers<-c("Observation Network","Climate Zone","Dominant Lithology","Dominant Land Cover")
+color_drivers<-c("Observation Network","Climate Zone","Dominant Lithology","Dominant Soil Type","Dominant Land Cover")
 
 #create summary file for solute record plot
 master_chem_summary<-master_chem %>%
+  dplyr::filter(year(date) > 1959) %>%
   dplyr::group_by(year, variable) %>%
   dplyr::summarise(num_streams=n_distinct(Stream_Name))
 
-master_chem_summary$variable<-factor(master_chem_summary$variable, levels = c("Ca", "Mg", "K", "Na", "N", "DSi", "P"))
+master_chem_summary$variable<-factor(master_chem_summary$variable, levels = c("Ca", "Mg", "Na", "SO4", "Cl", "K", "DSi",
+                                                                              "N", "NH4","P", "DOC"))
 
 
 #read in source data for table of driver information and rename columns
@@ -56,11 +60,13 @@ data_source_table<-read.csv("ShinyAppDataSourceTable.csv")
 colnames(data_source_table)<-c("Variable", "Source", "Units", "Spatial Scale", "Temporal Scale", "Temporal Coverage", "Dataset Link")
 
 #read in source data for table and map of site characteristic information
-all_drivers_table<-read.csv("MapDriversTable2.csv", na.strings=c("","NA"))
+all_drivers_table<-read.csv("MapDriversTable_AllSites_10252024.csv", na.strings=c("","NA"))
+all_drivers_table<-all_drivers_table[complete.cases(all_drivers_table$Latitude),]
+
 
 #rename columns
 colnames(all_drivers_table)<-c("Stream Name", "Observation Network", "Latitude", "Longitude", "Climate Zone",
-                               "Dominant Lithology", "Dominant Land Cover", "Mean Elevation", "Drainage Area (km2)",
+                               "Drainage Area (km2)", "Mean Elevation", "Dominant Soil Type", "Dominant Lithology", "Dominant Land Cover",
                                "Median Discharge (cms)", "Maximum Proportion Snow Covered Area (proportion)", "Precipitation (mm/year)",
                                "Evapotranspiration (kg/m2)","Mean Annual Temperature (deg C)", "NPP (kgC/m2)", "Green Up Day (day of year)",
                                "Maximum Daylength (hours)")
@@ -69,6 +75,7 @@ colnames(all_drivers_table)<-c("Stream Name", "Observation Network", "Latitude",
 all_drivers_table$`Stream Name`<-as.factor(all_drivers_table$`Stream Name`)
 all_drivers_table$`Observation Network`<-as.factor(all_drivers_table$`Observation Network`)
 all_drivers_table$`Climate Zone`<-as.factor(all_drivers_table$`Climate Zone`)
+all_drivers_table$`Dominant Soil Type`<-as.factor(all_drivers_table$`Dominant Soil Type`)
 all_drivers_table$`Dominant Lithology`<-as.factor(all_drivers_table$`Dominant Lithology`)
 all_drivers_table$`Dominant Land Cover`<-as.factor(all_drivers_table$`Dominant Land Cover`)
 
@@ -77,15 +84,12 @@ all_drivers_map<-all_drivers_table
 all_drivers_map$`Drainage Area (km2)`<-log(all_drivers_map$`Drainage Area (km2)`)
 all_drivers_map$`Median Discharge (cms)`<-log(all_drivers_map$`Median Discharge (cms)`)
 
-colnames(all_drivers_map)[c(9,10)]<-c("Log(Drainage Area (km2))", "Log(Median Discharge (cms))")
+colnames(all_drivers_map)[c(6,11)]<-c("Log(Drainage Area (km2))", "Log(Median Discharge (cms))")
 
 all_drivers_map$`Log(Median Discharge (cms))`<-ifelse(all_drivers_map$`Log(Median Discharge (cms))`=="-Inf", NA, all_drivers_map$`Log(Median Discharge (cms))`)
 
 #read in data for table of information about each observation network
 ON_table<-read.csv("ObservationNetworkTable.csv")
-
-#read in data for solute record length table
-#solute_record_length<-read.csv("/Users/keirajohnson/Desktop/ShinyAppFinalFolder/shinyapp_chemQ_overview.csv")
 
 #### make base map and add options for coloration ####
 world_countries<-map_data('world')
@@ -94,13 +98,13 @@ site_map<-leaflet(all_drivers_map) %>% addTiles() %>%
   addCircleMarkers(lat = ~Latitude, lng= ~Longitude, color = "darkgrey",
                    popup = ~paste(`Stream Name`, `Observation Network`, sep = "<br>"), weight = 1, fillOpacity = 0.7)
 
-map_color_options<-c("Observation Network", "Climate Zone", "Dominant Lithology", "Dominant Land Cover",
+map_color_options<-c("Observation Network", "Climate Zone", "Dominant Soil Type", "Dominant Lithology", "Dominant Land Cover",
                      "Mean Elevation", "Log(Drainage Area (km2))", "Log(Median Discharge (cms))", 
                      "Maximum Proportion Snow Covered Area (proportion)", "Precipitation (mm/year)",
                      "Evapotranspiration (kg/m2)", "Mean Annual Temperature (deg C)", "NPP (kgC/m2)",
                      "Green Up Day (day of year)", "Maximum Daylength (hours)")
 
-cat_color_options<-c("Observation Network", "Climate Zone", "Dominant Lithology", "Dominant Land Cover")
+cat_color_options<-c("Observation Network", "Climate Zone", "Dominant Soil Type", "Dominant Lithology", "Dominant Land Cover")
 
 cont_color_options<-c("Mean Elevation", "Drainage Area (km2)", "Median Discharge (cms)", 
                       "Maximum Proportion Snow Covered Area (proportion)", "Precipitation (mm/year)",
@@ -108,65 +112,36 @@ cont_color_options<-c("Mean Elevation", "Drainage Area (km2)", "Median Discharge
                       "Green Up Day (day of year)", "Maximum Daylength (hours)")
 
 #define color palette for map
-c25 <- c(
-  "dodgerblue2", "#E31A1C","green4","#6A3D9A","#FF7F00","gold1","skyblue2", "#FB9A99","palegreen2","#CAB2D6","#FDBF6F",
-  "khaki2","maroon", "orchid1", "deeppink1", "blue1", "steelblue4","darkturquoise", "green1", "yellow3","darkorange4")
+c25 <- c("#fcff5d", "#7dfc00","#0ec434", "#228c68", "#8ad8e8", "#235b54", "#29bdab","#3998f5", "#37294f", "#277da7", "#3750db", 
+         "#f22020", "#991919", "#ffcba5","#e68f66","#c56133", "#96341c", "#632819", "#ffc413", "#f47a22", "#2f2aa0", "#b732cc",
+         "#772b9d", "#f07cab", "#d30b94", "#edeff3", "#c3a5b4", "#946aa2","#5d4c86")
 
 ####User Interface####
 overview_ui <- navbarPage(
   # Title of the app
-  "Synthesize It!",
-  
-  ####About Panel####
-  tabPanel("About",
-           #this opens the page
-           fluidPage(
-             # Add a row to add things in
-             fluidRow(
-               #in the first column add an image
-               #in the second column add some text 
-               column(width=4, align="center", 
-                      
-                      tags$img(src="title_picture.jpeg", width="100%")
-                      
-               ),
-               column(width=8,
-                      
-                      htmltools::h2("About The Workshop"),
-                      
-                      htmltools::p("Big data integration offers the potential to advance water science by promoting a more comprehensive understanding of watershed function. 
-                           During this workshop, we will explore an extensive dataset including field observations and modeled results of multiple stream chemical 
-                           and hydrometric parameters spanning over 200 rivers. This dataset also includes associated spatial data describing climate, land cover, lithology, 
-                           and topography. We will explore questions and hypotheses about stream biogeochemical function using data visualization
-                           tools to evaluate relationships between catchment characteristics and watershed processes."),
-                      
-                      htmltools::h2("About This Project"),
-                      
-                      htmltools::p("This workshop stems out of a NCEAS funded working group to better understand controls on concentrations, fluxes, seasonality, and trends in
-                           riverine silicon (Si). For the past 5 years, we have worked to compile and harmonize this dataset to answer questions focused on better
-                           understanding Si cycling globally.")
-               )
-             ) #close fluid row
-           ) #close fluid page
-  ), #close about panel
+  "GlASS: Global Aggregation of Stream Silicon",
   
   #### Data Panel ####
   #this panel starts to incorporate output from the server (below) including a map and plots
-  tabPanel("Data Availability",
+  tabPanel("Dataset Overview",
            
            fluidPage(
              
-             htmltools::h2("About The Dataset"),
-               
-               htmltools::p("The dataset in this workshop includes stream chemistry, discharge, climate, land use, lithology, and topography data 
-                            from over 200 across the globe. Stream discharge and chemistry data was contributed from public and private monitoring networks, research groups,
-                            and govenmental agencies. Climate, productivity, land use, lithology, and topography associated with each watershed was derived from globally available modeled
-                            and remotely sensed data products."),
+             htmltools::p("Riverine silicon (Si) plays a vital role in governing primary production, water quality, 
+                          and carbon cycling. Climate and land cover change have altered how dissolved Si (DSi) is 
+                          processed on land, transported to rivers, and cycled through aquatic ecosystems. The Global 
+                          Aggregation of Stream Silica (GlASS) database was constructed to assess changes in river Si 
+                          concentrations and fluxes, their relationship to other solutes, and to evaluate mechanisms 
+                          driving the availability of Si. GlASS includes concentrations of DSi and 10 other biogenic and geogenic
+                          solutes that represent at daily to quarterly time steps from 1960 to 2023, daily discharge, 
+                          and watershed characteristics for nearly 500 rivers spanning 11 climate zones.", style="font-size:22px"),
                
                htmltools::h2("Discharge and Solute Availability"),
                
-               htmltools::p("This dataset includes daily stream discharge and discrete stream chemistry. Solutes include inorganic nitrogren (NO3/NOx), 
-                            inorganic phosphorus (PO4/SRP), silicon (Si), calcium (Ca), magnesium (Mg), sodium (Na), and potassium (K)."),
+               htmltools::p("This dataset includes daily stream discharge and discrete stream chemistry. 
+                            Solutes include dissolved inorganic carbon (DOC), inorganic phosphorus (PO4/SRP), ammonia (NH4),
+                            inorganic nitrogren (NO3/NOx), dissolved silicon (Si), potassium (K), chloride (Cl), sulfate (SO4),
+                            sodium (Na), magnesium (Mg) and calcium (Ca).", style="font-size:20px"),
 
                plotOutput('plot1'),
                
@@ -174,10 +149,18 @@ overview_ui <- navbarPage(
                
                htmltools::p("We acquired watershed characteristic (e.g., climate, land use) data from globally available spatial datasets listed below. 
                             Only globally available data layers were used in order to have consistent data sources across the extent of our dataset. 
-                            Watershed boundaries were used to extract spatial data from gridded data sources."),
+                            Watershed boundaries were used to extract spatial data from gridded data sources.", style="font-size:20px"),
                
                #see table1 output in server below
-               dataTableOutput('table1')
+               dataTableOutput('table1'),
+             
+             htmltools::h2("Observation Networks and Monitoring Programs"),
+             
+             htmltools::p("We sourced data from 25 published and publically available datasets spanning all seven continents and X countries.
+                          We encourage you to explore the links below to read more about data source and get a better idea of the breadth of
+                          climates and landscapes represented by GlASS", style="font-size:20px"),
+             
+             dataTableOutput('table3')
            )#close fluid page
   ), #close tab panel
   
@@ -185,23 +168,12 @@ overview_ui <- navbarPage(
   tabPanel("Site Locations",
            
            fluidPage(
-             
-             htmltools::h2("Site Locations"),
-             
-             sidebarPanel(
-               
-               #this is the observation network map
-               dataTableOutput('table3')
-               
-             ),
-             
-             mainPanel(
                
                htmltools::h2("Site Map"),
                
                htmltools::p("The map below displays the stream locations included in this dataset. Select a variable from the dropdown list to color sites by watershed 
                          Observation Network or catchment characteristic. Click on an individual point to see associated the name and Observation Network. For more information
-                         on each Observation Network, please visit the associated webpage linked in the table to the left."),
+                         on each Observation Network, please visit the associated webpage linked on the dataset overview tab.", style="font-size:20px"),
                
                column(width = 8, offset = 8,
                       #add option to color points by different things
@@ -212,20 +184,17 @@ overview_ui <- navbarPage(
                       )
                       ),
                
-                
-               
                #see mymap output in server below
-               leafletOutput("mymap"),
+               leafletOutput("mymap", height = 670),
                
                htmltools::h2("Site Information"),
                
-               htmltools::p("Watershed characteristic data for each site included in the dataset. Click on the column names to sort
+               htmltools::p("Mean watershed characteristic data for each site included in the dataset. Click on the column names to sort
                           the data table alphabetically, or filter sites using the boxes at the top of each column. You may apply filters across
-                          multiple columns at once. All climate values are mean annual values between 2001 and 2019."),
+                          multiple columns at once.", style="font-size:20px"),
                
                #this is the table of site characteristic information
                DT::DTOutput('table2')
-             ), #close main panel
            )#close fluid page
   ), #close tab panel
   
@@ -236,7 +205,7 @@ overview_ui <- navbarPage(
              #first set of plots to look at solute time series
              titlePanel("Explore Distributions of Solutes and Catchment Characteristics"),
              htmltools::p("Please select a solute or catchment characteristic from the dropdown list below to explore distributions of 
-                          the selected variable across the dataset. All solute concentrations are in mg/L."),
+                          the selected variable across the dataset. All solute concentrations are in mg/L.", style="font-size:20px"),
              #side bar layout allows you to add box on the side of the page, good for plotting
              sidebarLayout(
                sidebarPanel(
@@ -253,7 +222,8 @@ overview_ui <- navbarPage(
              ),#close sidebar layout
              #first set of plots to look at solute time series
              titlePanel("Explore Relationships between Solutes and Catchment Characteristics"),
-             htmltools::p("Please select a solute or catchment characteristic from each of the dropdown lists below. All solute concentrations are in mg/L."),
+             htmltools::p("Please select a solute or catchment characteristic from each of the dropdown lists below. 
+                          All solute concentrations are in mg/L.", style="font-size:20px"),
              
              #side bar layout allows you to add box on the side of the page, good for plotting
              sidebarLayout(
@@ -292,7 +262,7 @@ overview_ui <- navbarPage(
              titlePanel("Compare Solute Distributions Across Sites"),
              
              htmltools::p("Using the buttons below, select a solute to compare boxplot distributions of one solute across sites. Select sites using the Observation Network
-                          and Site drop down menus. We suggest displaying no more than 10 sites at a time."),
+                          and Site drop down menus. We suggest displaying no more than 10 sites at a time.", style="font-size:20px"),
              
              #sidebar layout to select inputs
              sidebarLayout(
@@ -327,7 +297,8 @@ overview_ui <- navbarPage(
              titlePanel("Compare Solute Time Series Across Sites"),
              
              htmltools::p("Using the buttons below, select a solute to compare time series of one solute across sites. Select sites using the Observation Network
-                          and Site drop down menus. Use the Toggle button to switch between instantanous and average monthly data. We suggest displaying no more than 3 sites at a time."),
+                          and Site drop down menus. Use the Toggle button to switch between instantanous and average monthly data. 
+                          We suggest displaying no more than 3 sites at a time.", style="font-size:20px"),
              
              #sidebar layout to select inputs
              sidebarLayout(
@@ -366,7 +337,8 @@ overview_ui <- navbarPage(
              titlePanel("Explore Concentration-Discharge Relationships Across Sites"),
              htmltools::p("Using the buttons below, select a solute to compare concentration-discharge (C-Q) relationships of one solute across sites. 
                           Select sites using the Observation Network and Site drop down menus. The equation and R2 in the upper left of the plot 
-                          provide slope and fit information for each C-Q relationship. We suggest displaying no more than 3 sites at a time."),
+                          provide slope and fit information for each C-Q relationship. 
+                          We suggest displaying no more than 3 sites at a time.", style="font-size:20px"),
              
              sidebarLayout(
                sidebarPanel(
@@ -408,7 +380,7 @@ overview_ui <- navbarPage(
              titlePanel("Compare Multi-Solute Time Series at One Site"),
              htmltools::p("Using the buttons below, select multiple solutes to time series solute concentrations at one site. Select one site using the Observation Network
                           and Site drop down menus. Discharge is shown over the same period of record. Use the Toggle button to switch between 
-                          instantanous and average monthly solute concentration data, and daily and average daily discharge data."),
+                          instantanous and average monthly solute concentration data, and daily and average daily discharge data.", style="font-size:20px"),
              
              #side bar layout allows you to add box on the side of the page, good for plotting
              sidebarLayout(
@@ -447,7 +419,7 @@ overview_ui <- navbarPage(
   ), #close panel
   
   ####Resources Panel####  
-  tabPanel("Resources",
+  tabPanel("Publications",
            
            fluidPage(
              
@@ -471,34 +443,13 @@ overview_ui <- navbarPage(
                       
                       uiOutput("regimes_MS"),
                       
+                      uiOutput("drivers_MS"),
+                      
                       htmltools::h2("Data Releases"),
                       
                       uiOutput("long_term_data"),
                       
-                      uiOutput("regimes_data"),
-                      
-                      htmltools::h2("Interested in building your own ShinyApp?"),
-                      
-                      uiOutput("github_page"),
-                      
-                      uiOutput("shiny_page"),
-                      
-                      htmltools::h2("Contact Us!"),
-                      
-                      htmltools::h3("Workshop Conveners"),
-                      
-                      htmltools::p("Keira Johnson: johnkeir@oregonstate.edu"),
-                      
-                      htmltools::p("Sidney Bush: bushsi@oregonstate.edu"),
-                      
-                      htmltools::h3("Project PIs"),
-                      
-                      htmltools::p("Kathi Jo Jankowski: kjankowski@usgs.gov"),
-                      
-                      htmltools::p("Joanna Carey: jcarey@babson.edu"),
-                      
-                      htmltools::p("Pamela Sullivan: pamela.sullivan@oregonstate.edu"),
-                      
+                      uiOutput("regimes_data")
                )
              ) #close fluid row
            ) #close fluid page
@@ -518,10 +469,10 @@ overview_server <- function(input, output, session){
   #plot of number of sites with data for each solute over time
   output$plot1<-renderPlot({
     
-    ggplot(master_chem_summary, aes(x=year, y=variable, col=num_streams))+geom_line(lwd=15)+
+    ggplot(master_chem_summary, aes(x=year, y=variable, col=num_streams))+geom_line(lwd=10)+
       theme_classic()+labs(y="", x="Year", col="Number of Sites")+
       theme(text = element_text(size = 20, family = "Times"))+
-      scale_color_gradient(low = "grey76", high = "deepskyblue3",limits=c(0,200))
+      scale_color_gradient(low = "grey76", high = "deepskyblue3",limits=c(0,400))
     
   })
   
@@ -575,6 +526,8 @@ overview_server <- function(input, output, session){
     } else if(input$map_option == "Dominant Lithology"){
       colorFactor(c25, domain = map_color())
     } else if(input$map_option == "Dominant Land Cover"){
+      colorFactor(c25, domain = map_color())
+    } else if(input$map_option == "Dominant Soil Type"){
       colorFactor(c25, domain = map_color())
     } else {
       colorNumeric("PuOr", domain = map_color())
@@ -793,20 +746,21 @@ overview_server <- function(input, output, session){
   
   
   cq2<-reactive({
-    cq_all_nodups %>%
-      dplyr::select(Stream_Name, date, input$button_solute4, Qcms)
+    master_cq %>%
+      dplyr::select(Stream_Name, Date, variable, value, Qcms)
   })
   
   #then by site selections
   cq3<-reactive({
     
     cq2() %>%
-      dplyr::filter(Stream_Name %in% c(input$dropdown_site4))
+      dplyr::filter(Stream_Name %in% c(input$dropdown_site4),
+                    variable %in% c(input$button_solute4))
   })
   
   output$cq_plot<-renderPlot({
     
-    ggplot(cq3(), aes(log(Qcms), log(get(input$button_solute4)), col=Stream_Name))+geom_point()+
+    ggplot(cq3(), aes(log(Qcms), log(value), col=Stream_Name))+geom_point()+
       labs(x="Log(discharge (m3/s))", y="Log(concentration (mg/L))", col="Site")+
       geom_smooth(se=F, method = "lm")+
       stat_poly_eq(use_label(c("eq", "R2")), size=7) +
@@ -955,6 +909,11 @@ overview_server <- function(input, output, session){
     tagList(url2)
   })
   
+  url5 <- a("Climate, hydrology, and nutrients control the seasonality of Si concentrations in rivers", href="https://doi.org/10.1029/2024JG008141")
+  output$drivers_MS <-renderUI({
+    tagList(url5)
+  })
+  
   url3 <- a("Dissolved silicon concentration and yield estimates from streams and rivers in North America and Antarctica,1964-2021", href="https://www.sciencebase.gov/catalog/item/646610b3d34ec11ae4a76b25")
   output$long_term_data <- renderUI({
     tagList(url3)
@@ -963,16 +922,6 @@ overview_server <- function(input, output, session){
   url4 <- a("Monthly dissolved silicon concentrations from 198 rivers in the Northern Hemisphere", href="https://www.sciencebase.gov/catalog/item/6511aeabd34e823a0275dc3e")
   output$regimes_data <- renderUI({
     tagList(url4)
-  })
-  
-  url5<-a("Shiny App GitHub Page", href="https://github.com/hydrokeira/ShinyApp_WSC")
-  output$github_page <- renderUI({
-    tagList(url5)
-  })
-  
-  url6<-a("Getting Started with Shiny", href="https://shiny.posit.co/r/getstarted/shiny-basics/lesson1/index.html")
-  output$shiny_page <- renderUI({
-    tagList(url6)
   })
   
 } #close server function
