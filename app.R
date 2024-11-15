@@ -133,15 +133,16 @@ overview_ui <- navbarPage(
                           Aggregation of Stream Silica (GlASS) database was constructed to assess changes in river Si 
                           concentrations and fluxes, their relationship to other solutes, and to evaluate mechanisms 
                           driving the availability of Si. GlASS includes concentrations of DSi and 10 other biogenic and geogenic
-                          solutes that represent at daily to quarterly time steps from 1960 to 2023, daily discharge, 
+                          solutes that represent daily to quarterly time steps from 1960 to 2023, daily discharge, 
                           and watershed characteristics for nearly 500 rivers spanning 11 climate zones.", style="font-size:22px"),
                
                htmltools::h2("Discharge and Solute Availability"),
                
                htmltools::p("This dataset includes daily stream discharge and discrete stream chemistry. 
-                            Solutes include dissolved inorganic carbon (DOC), inorganic phosphorus (PO4/SRP), ammonia (NH4),
-                            inorganic nitrogren (NO3/NOx), dissolved silicon (Si), potassium (K), chloride (Cl), sulfate (SO4),
-                            sodium (Na), magnesium (Mg) and calcium (Ca).", style="font-size:20px"),
+                            Solutes include dissolved inorganic carbon (DOC), dissolved inorganic phosphorus (P; 
+                            reported as either PO4 or SRP), ammonia (NH4), nitrate/nitrate + nitrite (N; reported as NO3 or NOx)”, 
+                            dissolved silicon (Si), potassium (K), chloride (Cl), sulfate (SO4), sodium (Na), magnesium (Mg),
+                            and calcium (Ca).", style="font-size:20px"),
 
                plotOutput('plot1'),
                
@@ -175,7 +176,7 @@ overview_ui <- navbarPage(
                          Observation Network or catchment characteristic. Click on an individual point to see associated the name and Observation Network. For more information
                          on each Observation Network, please visit the associated webpage linked on the dataset overview tab.", style="font-size:20px"),
                
-               column(width = 8, offset = 8,
+               column(width = 8, offset = 1,
                       #add option to color points by different things
                       varSelectInput(
                         inputId = "map_option",
@@ -451,7 +452,9 @@ overview_ui <- navbarPage(
                       
                       uiOutput("regimes_data", style="font-size:20px"),
                       
-                      uiOutput("drivers_data", style="font-size:20px")
+                      uiOutput("drivers_data", style="font-size:20px"),
+                      
+                      uiOutput("glass_data", style="font-size:20px")
                )
              ) #close fluid row
            ) #close fluid page
@@ -929,6 +932,11 @@ overview_server <- function(input, output, session){
   url6<-a("Average and annual watershed climate, hydrology, and productivity data for rivers across the Northern Hemisphere", href="https://www.sciencebase.gov/catalog/item/6684087fd34e0f592272b3da")
   output$drivers_data<-renderUI({
     tagList(url6)
+  })
+  
+  url7<-a("Global Aggregation of Stream Silica (GlASS)", href="https://www.sciencebase.gov/catalog/item/66eaf6a0d34e0606a9dbaa19")
+  output$glass_data<-renderUI({
+    tagList(url7)
   })
   
 } #close server function
